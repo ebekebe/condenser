@@ -50,6 +50,11 @@ class LoggingCursor:
     def __init__(self, cursor):
         self.inner_cursor = cursor
 
+    def _log_fetch(self, operation, row_count, elapsed):
+        if config_reader.verbose_logging():
+            print('\tCursor {} returned {} rows in {}s'.format(operation, row_count, elapsed))
+            sys.stdout.flush()
+
     def execute(self, query):
         start_time = time.time()
         if config_reader.verbose_logging():
@@ -60,6 +65,28 @@ class LoggingCursor:
             print('\tQuery completed in {}s'.format(time.time() - start_time))
             sys.stdout.flush()
         return retval
+
+    def fetchone(self):
+        start_time = time.time()
+        row = self.inner_cursor.fetchone()
+        row_count = 0 if row is None else 1
+        self._log_fetch('fetchone', row_count, time.time() - start_time)
+        return row
+
+    def fetchmany(self, size=None):
+        start_time = time.time()
+        if size is None:
+            rows = self.inner_cursor.fetchmany()
+        else:
+            rows = self.inner_cursor.fetchmany(size)
+        self._log_fetch('fetchmany', len(rows), time.time() - start_time)
+        return rows
+
+    def fetchall(self):
+        start_time = time.time()
+        rows = self.inner_cursor.fetchall()
+        self._log_fetch('fetchall', len(rows), time.time() - start_time)
+        return rows
 
     def __getattr__(self, name):
         return self.inner_cursor.__getattribute__(name)
