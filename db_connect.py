@@ -52,7 +52,7 @@ class LoggingCursor:
 
     def _log_fetch(self, operation, row_count, elapsed):
         if config_reader.verbose_logging():
-            print('\tCursor {} returned {} rows in {}s'.format(operation, row_count, elapsed))
+            print('\tCursor {} returned {} rows in {:.3f}s'.format(operation, row_count, elapsed))
             sys.stdout.flush()
 
     def execute(self, query):
@@ -62,7 +62,7 @@ class LoggingCursor:
             sys.stdout.flush()
         retval = self.inner_cursor.execute(query)
         if config_reader.verbose_logging():
-            print('\tQuery completed in {}s'.format(time.time() - start_time))
+            print('\tQuery completed in {:.3f}s'.format(time.time() - start_time))
             sys.stdout.flush()
         return retval
 
