@@ -1,4 +1,5 @@
-import os, urllib, subprocess
+import os, urllib, subprocess, time
+import config_reader
 from db_connect import DbConnect
 import database_helper
 
@@ -44,8 +45,8 @@ class PsqlDatabaseCreator:
 
             connection = '--dbname=postgresql://{0}@{2}:{3}/{4}?{1}'.format(self.source_dbc.user, urllib.parse.urlencode({'password': self.source_dbc.password}), self.source_dbc.host, self.source_dbc.port, self.source_dbc.db_name)
 
-            result = subprocess.run(['pg_dump', connection, '--schema-only', '--no-owner', '--no-privileges', '--section=pre-data']
-                    , stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+            result = run_logged(['pg_dump', connection, '--schema-only', '--no-owner', '--no-privileges', '--section=pre-data'],
+                    stdout = subprocess.PIPE, stderr = subprocess.PIPE)
             if result.returncode != 0 or contains_errors(result.stderr):
                 raise Exception('Captuing pre-data schema failed. Details:\n{}'.format(result.stderr))
             os.chdir(cur_path)
@@ -77,8 +78,8 @@ class PsqlDatabaseCreator:
             if pg_dump_path != '':
                 os.chdir(pg_dump_path)
             connection = '--dbname=postgresql://{0}@{2}:{3}/{4}?{1}'.format(self.source_dbc.user, urllib.parse.urlencode({'password': self.source_dbc.password}), self.source_dbc.host, self.source_dbc.port, self.source_dbc.db_name)
-            result = subprocess.run(['pg_dump', connection, '--schema-only', '--no-owner', '--no-privileges', '--section=post-data']
-                    , stderr = subprocess.PIPE, stdout = subprocess.PIPE)
+            result = run_logged(['pg_dump', connection, '--schema-only', '--no-owner', '--no-privileges', '--section=post-data'],
+                    stderr = subprocess.PIPE, stdout = subprocess.PIPE)
             if result.returncode != 0 or contains_errors(result.stderr):
                 raise Exception('Captuing post-data schema failed. Details:\n{}'.format(result.stderr))
 
@@ -121,7 +122,7 @@ class PsqlDatabaseCreator:
                     connection_info.port, connection_info.db_name)
 
 
-        result = subprocess.run(['psql', connection_string, '-c {0}'.format(query)], stderr = subprocess.PIPE, stdout = subprocess.DEVNULL)
+        result = run_logged(['psql', connection_string, '-c {0}'.format(query)], stderr = subprocess.PIPE, stdout = subprocess.DEVNULL)
         if result.returncode != 0 or contains_errors(result.stderr):
             raise Exception('Running query: "{}" failed. Details:\n{}'.format(query, result.stderr))
 
@@ -141,7 +142,7 @@ class PsqlDatabaseCreator:
             connect.port, connect.db_name)
 
         input = queries.encode('utf-8')
-        result = subprocess.run(['psql', connection_string], stderr = subprocess.PIPE, input = input, stdout= subprocess.DEVNULL)
+        result = run_logged(['psql', connection_string], stderr = subprocess.PIPE, input = input, stdout= subprocess.DEVNULL)
         if result.returncode != 0 or contains_errors(result.stderr):
             raise Exception('Creating schema failed. Details:\n{}'.format(result.stderr))
 
@@ -152,11 +153,25 @@ def get_pg_bin_path():
         pg_dump_path = os.environ['POSTGRES_PATH']
     else:
         pg_dump_path = ''
+    if config_reader.verbose_logging():
+        print('Launching external command: pg_dump', flush=True)
+    start_time = time.time()
     err = os.system('"' + os.path.join(pg_dump_path, 'pg_dump') + '"' + ' --help > ' + os.devnull)
+    if config_reader.verbose_logging():
+        print('External command pg_dump completed in {:.3f}s'.format(time.time() - start_time), flush=True)
     if err != 0:
         raise Exception("Couldn't find Postgres utilities, consider specifying POSTGRES_PATH environment variable if Postgres isn't " +
             "in your PATH.")
     return pg_dump_path
+
+def run_logged(args, **kwargs):
+    start_time = time.time()
+    if config_reader.verbose_logging():
+        print('Launching external command: {}'.format(args[0]), flush=True)
+    result = subprocess.run(args, **kwargs)
+    if config_reader.verbose_logging():
+        print('External command {} completed in {:.3f}s'.format(args[0], time.time() - start_time), flush=True)
+    return result
 
 def contains_errors(stderr):
     msgs = stderr.decode('utf-8')

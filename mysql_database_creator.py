@@ -1,4 +1,5 @@
-import os, urllib, subprocess, io
+import os, urllib, subprocess, io, time
+import config_reader
 
 class MySqlDatabaseCreator:
     def __init__(self, source_connect, destination_connect):
@@ -15,19 +16,19 @@ class MySqlDatabaseCreator:
 
         ca = connection_args(self.__source_connect)
         args = ['mysqldump', '--no-data', '--routines'] + ca + [self.__source_connect.db_name]
-        result = subprocess.run(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+        result = run_logged(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
         if result.returncode != 0:
             raise Exception('Capturing schema failed. Details:\n{}'.format(result.stderr))
         commands_to_create_schema = result.stdout
 
         ca = connection_args(self.__destination_connect)
         args = ['mysql'] + ca + ['-e', 'CREATE DATABASE ' + self.__destination_connect.db_name]
-        result = subprocess.run(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+        result = run_logged(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
         if result.returncode != 0:
             raise Exception('Creating destination database failed. Details:\n{}'.format(result.stderr))
 
         args = ['mysql', '-D', self.__destination_connect.db_name] + ca
-        result = subprocess.run(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE, input=commands_to_create_schema)
+        result = run_logged(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE, input=commands_to_create_schema)
         if result.returncode != 0:
             raise Exception('Creating destination schema. Details:\n{}'.format(result.stderr))
 
@@ -49,7 +50,7 @@ class MySqlDatabaseCreator:
 
         ca = connection_args(self.__destination_connect)
         args = ['mysql'] + ca + ['-e', command]
-        result = subprocess.run(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+        result = run_logged(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
         os.chdir(cur_path)
         if result.returncode != 0:
             raise Exception('Failed to run command \'{}\'. Details:\n{}'.format(command, result.stderr))
@@ -59,7 +60,12 @@ def get_mysql_bin_path():
         mysql_bin_path = os.environ['MYSQL_PATH']
     else:
         mysql_bin_path = ''
+    if config_reader.verbose_logging():
+        print('Launching external command: mysqldump', flush=True)
+    start_time = time.time()
     err = os.system('"' + os.path.join(mysql_bin_path, 'mysqldump') + '"' + ' --help > ' + os.devnull)
+    if config_reader.verbose_logging():
+        print('External command mysqldump completed in {:.3f}s'.format(time.time() - start_time), flush=True)
     if err != 0:
         raise Exception("Couldn't find MySQL utilities, consider specifying MYSQL_PATH environment variable if MySQL isn't " +
             "in your PATH.")
@@ -71,6 +77,15 @@ def connection_args(connect):
     user_arg = '--user={}'.format(connect.user)
     password_arg = '--password={}'.format(connect.password)
     return [host_arg, port_arg, user_arg, password_arg]
+
+def run_logged(args, **kwargs):
+    start_time = time.time()
+    if config_reader.verbose_logging():
+        print('Launching external command: {}'.format(args[0]), flush=True)
+    result = subprocess.run(args, **kwargs)
+    if config_reader.verbose_logging():
+        print('External command {} completed in {:.3f}s'.format(args[0], time.time() - start_time), flush=True)
+    return result
 
 
 # This is just for unit testing the creation and tear down processes
