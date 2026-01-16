@@ -67,6 +67,8 @@ class LoggingCursor:
         return retval
 
     def fetchone(self):
+        if config_reader.verbose_logging():
+            print('\tCursor fetchone starting', flush=True)
         start_time = time.time()
         row = self.inner_cursor.fetchone()
         row_count = 0 if row is None else 1
@@ -74,6 +76,8 @@ class LoggingCursor:
         return row
 
     def fetchmany(self, size=None):
+        if config_reader.verbose_logging():
+            print('\tCursor fetchmany starting{}'.format(' (size={})'.format(size) if size is not None else ''), flush=True)
         start_time = time.time()
         if size is None:
             rows = self.inner_cursor.fetchmany()
@@ -83,6 +87,8 @@ class LoggingCursor:
         return rows
 
     def fetchall(self):
+        if config_reader.verbose_logging():
+            print('\tCursor fetchall starting', flush=True)
         start_time = time.time()
         rows = self.inner_cursor.fetchall()
         self._log_fetch('fetchall', len(rows), time.time() - start_time)
