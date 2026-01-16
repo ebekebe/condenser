@@ -61,11 +61,13 @@ def get_mysql_bin_path():
     else:
         mysql_bin_path = ''
     if config_reader.verbose_logging():
-        print('Launching external command: mysqldump', flush=True)
+        print('Launching external command: {}'.format([os.path.join(mysql_bin_path, 'mysqldump'), '--help']), flush=True)
     start_time = time.time()
-    err = os.system('"' + os.path.join(mysql_bin_path, 'mysqldump') + '"' + ' --help > ' + os.devnull)
+    command = '"' + os.path.join(mysql_bin_path, 'mysqldump') + '"' + ' --help > ' + os.devnull
+    err = os.system(command)
     if config_reader.verbose_logging():
-        print('External command mysqldump completed in {:.3f}s'.format(time.time() - start_time), flush=True)
+        print('External command {} completed in {:.3f}s'.format([os.path.join(mysql_bin_path, 'mysqldump'), '--help'],
+            time.time() - start_time), flush=True)
     if err != 0:
         raise Exception("Couldn't find MySQL utilities, consider specifying MYSQL_PATH environment variable if MySQL isn't " +
             "in your PATH.")
@@ -81,10 +83,10 @@ def connection_args(connect):
 def run_logged(args, **kwargs):
     start_time = time.time()
     if config_reader.verbose_logging():
-        print('Launching external command: {}'.format(args[0]), flush=True)
+        print('Launching external command: {}'.format(args), flush=True)
     result = subprocess.run(args, **kwargs)
     if config_reader.verbose_logging():
-        print('External command {} completed in {:.3f}s'.format(args[0], time.time() - start_time), flush=True)
+        print('External command {} completed in {:.3f}s'.format(args, time.time() - start_time), flush=True)
     return result
 
 

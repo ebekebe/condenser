@@ -154,11 +154,13 @@ def get_pg_bin_path():
     else:
         pg_dump_path = ''
     if config_reader.verbose_logging():
-        print('Launching external command: pg_dump', flush=True)
+        print('Launching external command: {}'.format([os.path.join(pg_dump_path, 'pg_dump'), '--help']), flush=True)
     start_time = time.time()
-    err = os.system('"' + os.path.join(pg_dump_path, 'pg_dump') + '"' + ' --help > ' + os.devnull)
+    command = '"' + os.path.join(pg_dump_path, 'pg_dump') + '"' + ' --help > ' + os.devnull
+    err = os.system(command)
     if config_reader.verbose_logging():
-        print('External command pg_dump completed in {:.3f}s'.format(time.time() - start_time), flush=True)
+        print('External command {} completed in {:.3f}s'.format([os.path.join(pg_dump_path, 'pg_dump'), '--help'],
+            time.time() - start_time), flush=True)
     if err != 0:
         raise Exception("Couldn't find Postgres utilities, consider specifying POSTGRES_PATH environment variable if Postgres isn't " +
             "in your PATH.")
@@ -167,10 +169,10 @@ def get_pg_bin_path():
 def run_logged(args, **kwargs):
     start_time = time.time()
     if config_reader.verbose_logging():
-        print('Launching external command: {}'.format(args[0]), flush=True)
+        print('Launching external command: {}'.format(args), flush=True)
     result = subprocess.run(args, **kwargs)
     if config_reader.verbose_logging():
-        print('External command {} completed in {:.3f}s'.format(args[0], time.time() - start_time), flush=True)
+        print('External command {} completed in {:.3f}s'.format(args, time.time() - start_time), flush=True)
     return result
 
 def contains_errors(stderr):
